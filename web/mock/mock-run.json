@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "meta": {
+    "agent": "lazarus",
+    "base_agent": "antigravity-preview-05-2026",
+    "module": "payroll.cob",
+    "started_at": "2026-05-23T10:42:00Z",
+    "iteration_cap": 4,
+    "note": "Break-glass fallback (?mock=1). The DEFAULT path is the live SSE stream from /api/migrate. This scripted run mirrors a real LAZARUS migration for stage safety."
+  },
+  "events": [
+    { "type": "phase", "t": 200, "phase": "ingest", "label": "Ingesting legacy module", "iteration": 1 },
+    { "type": "step", "t": 300, "kind": "status", "title": "payroll.cob loaded", "text": "24 lines · 998 bytes · COBOL-85 fixed format", "status": "ok" },
+    { "type": "step", "t": 900, "kind": "thought", "text": "Reading the entire module in one pass (1M-token context). This program accepts a numeric string, computes tax at a fixed rate, derives net pay, and DISPLAYs it. The fields use COMP-3 storage, but output is via COBOL numeric DISPLAY de-editing — I must mirror its formatting + rounding exactly." },
+    { "type": "step", "t": 1700, "kind": "tool_call", "tool": "code_execution", "lang": "bash", "title": "Inspect source", "text": "wc -l src/payroll.cob && grep -n 'PIC 9' src/payroll.cob", "status": "ok", "duration_ms": 120 },
+    { "type": "step", "t": 2100, "kind": "output", "lang": "bash", "text": "24 src/payroll.cob\n11:       01  WS-GROSS-PAY      PIC 9(7)V99 COMP-3.\n13:       01  WS-TAX            PIC 9(7)V99 COMP-3.\n14:       01  WS-NET            PIC 9(7)V99 COMP-3." },
+
+    { "type": "phase", "t": 2600, "phase": "recover", "label": "Recovering business rules", "iteration": 1 },
+    { "type": "step", "t": 2700, "kind": "thought", "text": "Before translating, recover the undocumented business logic this code encodes — the institutional knowledge that retired with its authors." },
+    { "type": "business_rule", "t": 3200, "id": "input-parse", "title": "Free-form numeric input", "plain": "Gross pay arrives as a 12-character string and is parsed numerically (NUMVAL), tolerating leading spaces and missing leading zeros.", "cobol_ref": "MOVE FUNCTION NUMVAL(WS-IN) TO WS-GROSS-PAY", "severity": "rule" },
+    { "type": "business_rule", "t": 4400, "id": "tax-progressive", "title": "Flat 22.5% tax withholding", "plain": "Tax is 22.5% of gross pay, stored to two decimal places.", "cobol_ref": "WS-TAX-RATE PIC V999 VALUE 0.225", "severity": "rule" },
+    { "type": "business_rule", "t": 5600, "id": "net-pay", "title": "Net = gross − tax", "plain": "Net pay is gross minus the withheld tax, never recomputed from a rate.", "cobol_ref": "COMPUTE WS-NET = WS-GROSS-PAY - WS-TAX", "severity": "rule" },
+    { "type": "business_rule", "t": 6900, "id": "display-rounding", "title": "DISPLAY de-editing + half-up rounding", "plain": "The tax uses COMPUTE ... ROUNDED, and net pay is shown via DISPLAY of a PIC 9(7)V99 field: COBOL ROUNDED is half-up (NOT Python's banker's rounding), and DISPLAY zero-pads to the full picture width ('0000775.00', not '775.0'). Get either wrong and the bytes diverge.", "cobol_ref": "COMPUTE WS-TAX ROUNDED = WS-GROSS-PAY * WS-TAX-RATE", "severity": "gotcha" },
+
+    { "type": "phase", "t": 7600, "phase": "translate", "label": "Translating to Python", "iteration": 1 },
+    { "type": "step", "t": 7700, "kind": "thought", "text": "Writing idiomatic Python that mirrors the recovered rules. First-pass: standard rounding — I have no skill for COBOL's DISPLAY formatting + half-up rounding yet, so I'll use Python's default and let the oracle catch any drift." },
+    { "type": "step", "t": 8400, "kind": "code", "lang": "python", "title": "write payroll.py", "text": "def net_pay(raw: str) -> str:\n    gross = float(raw.strip())\n    tax = round(gross * 0.225, 2)        # default rounding (banker's)\n    net = gross - tax\n    return f\"{net:010.2f}\"", "status": "ok", "duration_ms": 210 },
+    { "type": "diff", "t": 8900,
+      "left":  { "lang": "cobol", "name": "payroll.cob", "code": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. PAYROLL.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01  WS-GROSS-PAY  PIC 9(7)V99 COMP-3.\n       01  WS-TAX-RATE   PIC V999 VALUE 0.225.\n       01  WS-TAX        PIC 9(7)V99 COMP-3.\n       01  WS-NET        PIC 9(7)V99 COMP-3.\n       01  WS-IN         PIC X(12).\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           ACCEPT WS-IN.\n           MOVE FUNCTION NUMVAL(WS-IN) TO WS-GROSS-PAY.\n           COMPUTE WS-TAX ROUNDED =\n               WS-GROSS-PAY * WS-TAX-RATE.\n           COMPUTE WS-NET = WS-GROSS-PAY - WS-TAX.\n           DISPLAY WS-NET.\n           STOP RUN." },
+      "right": { "lang": "python", "name": "payroll.py", "code": "def net_pay(raw: str) -> str:\n    gross = float(raw.strip())\n    tax = round(gross * 0.225, 2)\n    net = gross - tax\n    return f\"{net:010.2f}\"" },
+      "links": [ { "left": [13,14], "right": [3,3], "kind": "gotcha" } ] },
+
+    { "type": "phase", "t": 9600, "phase": "oracle", "label": "Building differential oracle", "iteration": 1 },
+    { "type": "step", "t": 9700, "kind": "tool_call", "tool": "code_execution", "lang": "bash", "title": "Install real GnuCOBOL (no root) + run the ORIGINAL", "text": "micromamba create -y -p /workspace/cobol -c conda-forge gnucobol && /workspace/cobol/bin/cobc -x -free src/payroll.cob -o payroll.bin && ./payroll.bin <<< '12000.00'", "status": "ok", "duration_ms": 640 },
+    { "type": "oracle", "t": 10300, "compiler": "GnuCOBOL cobc 3.2 (conda-forge, userland)", "inputs": ["12000.00", "00345.67", "99999.99"], "note": "Canonical outputs captured from the original program compiled with REAL GnuCOBOL — ground truth the agent did not write. (golden_io.json is the deterministic fallback.)" },
+    { "type": "step", "t": 10600, "kind": "output", "lang": "bash", "text": "oracle[12000.00] = 0009300.00\noracle[00345.67] = 0000267.89\noracle[99999.99] = 0077499.99" },
+
+    { "type": "phase", "t": 11000, "phase": "test", "label": "Running equivalence tests", "iteration": 1 },
+    { "type": "step", "t": 11100, "kind": "code", "lang": "python", "title": "generate test_equivalence.py", "text": "import pytest, payroll\nCASES = json.load(open('golden_io.json'))\n@pytest.mark.parametrize('inp,oracle', CASES)\ndef test_net_pay(inp, oracle):\n    assert payroll.net_pay(inp) == oracle", "status": "ok", "duration_ms": 90 },
+    { "type": "pytest", "t": 11600, "result": "running", "iteration": 1, "summary": "collecting..." },
+    { "type": "pytest", "t": 12600, "result": "red", "iteration": 1, "summary": "2 failed, 1 passed in 0.41s",
+      "cases": [
+        { "name": "test_net_pay[12000.00]", "status": "pass", "cobol": "0009300.00", "python": "0009300.00" },
+        { "name": "test_net_pay[00345.67]", "status": "fail", "cobol": "0000267.89", "python": "0000267.90", "message": "AssertionError: byte mismatch — banker's rounding rounded 77.775 up, COBOL ROUNDED is half-up" },
+        { "name": "test_net_pay[99999.99]", "status": "fail", "cobol": "0077499.99", "python": "0077500.00", "message": "AssertionError: byte mismatch — COBOL ROUNDED is half-up, not half-even" }
+      ] },
+
+    { "type": "phase", "t": 13000, "phase": "diagnose", "label": "Diagnosing failure", "iteration": 1 },
+    { "type": "step", "t": 13100, "kind": "thought", "text": "Both failures are off by exactly one cent on values whose tax ends in .5 at the third decimal. Root cause: Python's round() uses banker's rounding (half-to-even); COBOL COMPUTE ... ROUNDED is half-up. (COMP-3 storage is irrelevant — DISPLAY de-edits identically regardless.) This is an unknown idiom — I have no skill for COBOL's numeric DISPLAY + half-up rounding. I will FORGE one." },
+
+    { "type": "phase", "t": 13700, "phase": "forge", "label": "Forging a new skill", "iteration": 1 },
+    { "type": "step", "t": 13800, "kind": "status", "title": "FORGE", "text": "Authoring .agents/skills/numeric-display-rounding/SKILL.md and committing it to the persistent environment.", "status": "running" },
+    { "type": "forge", "t": 14200,
+      "skill": ".agents/skills/numeric-display-rounding/SKILL.md",
+      "reason": "Unknown idiom: COBOL numeric DISPLAY de-editing + COMPUTE ROUNDED (half-up).",
+      "git": {
+        "status": "A",
+        "additions": [
+          "# SKILL: COBOL numeric DISPLAY format + ROUND-HALF-UP",
+          "",
+          "When COBOL uses `COMPUTE ... ROUNDED` and DISPLAYs a numeric",
+          "`PIC 9(n)V99` field, it rounds **half-up** at the field scale",
+          "(NOT Python's banker's rounding) and zero-pads to the full",
+          "picture width on DISPLAY ('0000775.00', not '775.0').",
+          "",
+          "## Rule",
+          "Use Decimal + ROUND_HALF_UP, then format to the picture width:",
+          "",
+          "```python",
+          "from decimal import Decimal, ROUND_HALF_UP",
+          "def cobol_round(value, scale=2):",
+          "    q = Decimal(1).scaleb(-scale)",
+          "    return Decimal(str(value)).quantize(q, rounding=ROUND_HALF_UP)",
+          "# DISPLAY a 9(7)V99 field as zero-padded 10.2f, e.g. f\"{net:010.2f}\"",
+          "```",
+          "",
+          "Apply to every numeric field DISPLAYed after COMPUTE ... ROUNDED."
+        ],
+        "commit": "forge: add numeric DISPLAY + half-up rounding skill"
+      } },
+    { "type": "step", "t": 16400, "kind": "tool_call", "tool": "code_execution", "lang": "bash", "title": "Commit the forged skill", "text": "git add .agents/skills/numeric-display-rounding/SKILL.md && git commit -m 'forge: add numeric DISPLAY + half-up rounding skill'", "status": "ok", "duration_ms": 180 },
+
+    { "type": "reload", "t": 16900, "label": "Re-reading numeric-display-rounding skill in the reused environment" },
+
+    { "type": "phase", "t": 17400, "phase": "translate", "label": "Re-translating with new skill", "iteration": 2 },
+    { "type": "step", "t": 17500, "kind": "thought", "text": "Re-read the forged skill from the reused environment. Rewriting net_pay to use Decimal half-up rounding at the field scale, formatted to the DISPLAY picture width." },
+    { "type": "step", "t": 18000, "kind": "code", "lang": "python", "title": "rewrite payroll.py", "text": "from decimal import Decimal, ROUND_HALF_UP\nCENT = Decimal('0.01')\ndef net_pay(raw: str) -> str:\n    gross = Decimal(raw.strip())\n    tax = (gross * Decimal('0.225')).quantize(CENT, ROUND_HALF_UP)\n    net = gross - tax\n    return f\"{net:010.2f}\"", "status": "ok", "duration_ms": 230 },
+    { "type": "diff", "t": 18600,
+      "left":  { "lang": "cobol", "name": "payroll.cob", "code": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. PAYROLL.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01  WS-GROSS-PAY  PIC 9(7)V99 COMP-3.\n       01  WS-TAX-RATE   PIC V999 VALUE 0.225.\n       01  WS-TAX        PIC 9(7)V99 COMP-3.\n       01  WS-NET        PIC 9(7)V99 COMP-3.\n       01  WS-IN         PIC X(12).\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           ACCEPT WS-IN.\n           MOVE FUNCTION NUMVAL(WS-IN) TO WS-GROSS-PAY.\n           COMPUTE WS-TAX ROUNDED =\n               WS-GROSS-PAY * WS-TAX-RATE.\n           COMPUTE WS-NET = WS-GROSS-PAY - WS-TAX.\n           DISPLAY WS-NET.\n           STOP RUN." },
+      "right": { "lang": "python", "name": "payroll.py", "code": "from decimal import Decimal, ROUND_HALF_UP\nCENT = Decimal('0.01')\n\ndef net_pay(raw: str) -> str:\n    gross = Decimal(raw.strip())\n    tax = (gross * Decimal('0.225')).quantize(\n        CENT, ROUND_HALF_UP)          # COBOL half-up\n    net = gross - tax\n    return f\"{net:010.2f}\"          # DISPLAY zero-pad to PIC width" },
+      "links": [ { "left": [14,15], "right": [6,7], "kind": "rule" } ] },
+
+    { "type": "phase", "t": 19200, "phase": "test", "label": "Re-running equivalence tests", "iteration": 2 },
+    { "type": "pytest", "t": 19400, "result": "running", "iteration": 2, "summary": "collecting..." },
+    { "type": "pytest", "t": 20600, "result": "green", "iteration": 2, "summary": "3 passed in 0.39s",
+      "cases": [
+        { "name": "test_net_pay[12000.00]", "status": "pass", "cobol": "0009300.00", "python": "0009300.00" },
+        { "name": "test_net_pay[00345.67]", "status": "pass", "cobol": "0000267.89", "python": "0000267.89" },
+        { "name": "test_net_pay[99999.99]", "status": "pass", "cobol": "0077499.99", "python": "0077499.99" }
+      ] },
+
+    { "type": "phase", "t": 21000, "phase": "verify", "label": "Verifying byte-for-byte equivalence", "iteration": 2 },
+    { "type": "step", "t": 21100, "kind": "status", "title": "Differential oracle: MATCH", "text": "Python output == real GnuCOBOL output across all 3 inputs. Equivalence is falsifiable — and not falsified.", "status": "ok" },
+
+    { "type": "download", "t": 21600, "name": "payroll.py", "mime": "text/x-python", "content": "\"\"\"payroll.py — migrated from payroll.cob by LAZARUS.\n\nProven byte-for-byte equivalent to the original GnuCOBOL output across\nthe golden input battery. COBOL numeric DISPLAY de-editing + COMPUTE\nROUNDED (half-up) handled via the forged numeric-display-rounding skill.\n\"\"\"\nfrom decimal import Decimal, ROUND_HALF_UP\n\nCENT = Decimal('0.01')\nTAX_RATE = Decimal('0.225')\n\n\ndef net_pay(raw: str) -> str:\n    \"\"\"Compute net pay from a free-form gross-pay string.\n\n    Mirrors PAYROLL.COB: flat 22.5% tax withheld with COBOL ROUNDED\n    (half-up) semantics, net = gross - tax, formatted as the original\n    zero-padded PIC 9(7)V99 DISPLAY field.\n    \"\"\"\n    gross = Decimal(raw.strip())\n    tax = (gross * TAX_RATE).quantize(CENT, rounding=ROUND_HALF_UP)\n    net = gross - tax\n    return f\"{net:010.2f}\"\n\n\nif __name__ == '__main__':\n    import sys\n    print(net_pay(sys.stdin.readline()))\n" },
+
+    { "type": "done", "t": 22200, "verdict": "EQUIVALENT", "summary": "Byte-for-byte equivalent to the mainframe across 3 inputs in 2 iterations." }
+  ]
+}

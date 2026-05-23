@@ -1,0 +1,60 @@
+{
+  "program": "interest.cob",
+  "captured_with": "cobc (GnuCOBOL) 3.2.0 (cobc -x), 2026-05-23",
+  "capture_status": "REAL -- compiled + run with live cobc (GnuCOBOL 3.2.0), not computed/fabricated",
+  "role": "PRIMARY ORACLE GROUND TRUTH for the interest.cob sample. Same contract as payroll's golden_io.json: the differential oracle proves equivalence against THESE pre-captured real-COBOL bytes. Re-capture via src/sample/build_samples.sh.",
+  "business_rule": "interest = TRUNCATE_TO_CENTS(principal * 0.0375). COBOL `COMPUTE` WITHOUT `ROUNDED` truncates (drops sub-cent digits), it does NOT round. A naive Python round() rounds up and diverges. This is the OPPOSITE idiom from payroll.cob (which needed ROUND_HALF_UP). Output is PIC 9(7)V99 rendered by DISPLAY: 7 integer digits + 2 decimals, zero-padded, unsigned, trailing newline.",
+  "truncation_note": "Proof cases where TRUNCATION != round(): 1.00 (0.03 vs 0.04), 13.33 (0.49 vs 0.50), 50000.50 (1875.01 vs 1875.02), 9999999.99 (374999.99 vs 375000.00). A round()-based translation FAILS the diff on these; ROUND_DOWN matches COBOL.",
+  "cases": [
+    {
+      "input": "1000.00\n",
+      "cobol": "0000037.50\n",
+      "note": "1000*0.0375=37.5000 -> 37.50 (clean)"
+    },
+    {
+      "input": "100.00\n",
+      "cobol": "0000003.75\n",
+      "note": "100*0.0375=3.7500 -> 3.75 (clean)"
+    },
+    {
+      "input": "0.01\n",
+      "cobol": "0000000.00\n",
+      "note": "0.01*0.0375=0.000375 -> truncates to 0.00"
+    },
+    {
+      "input": "0.00\n",
+      "cobol": "0000000.00\n",
+      "note": "zero edge case"
+    },
+    {
+      "input": "9999999.99\n",
+      "cobol": "0374999.99\n",
+      "note": "max principal; raw 374999.999625 -> TRUNC 374999.99 (round() gives 375000.00 -> RED)"
+    },
+    {
+      "input": "13.33\n",
+      "cobol": "0000000.49\n",
+      "note": "raw 0.499875 -> TRUNC 0.49 (round() gives 0.50 -> RED)"
+    },
+    {
+      "input": "26.67\n",
+      "cobol": "0000001.00\n",
+      "note": "raw 1.000125 -> 1.00 (clean; round() also 1.00)"
+    },
+    {
+      "input": "88.88\n",
+      "cobol": "0000003.33\n",
+      "note": "raw 3.333000 -> 3.33 (clean)"
+    },
+    {
+      "input": "1.00\n",
+      "cobol": "0000000.03\n",
+      "note": "raw 0.037500 -> TRUNC 0.03 (round() gives 0.04 -> RED)"
+    },
+    {
+      "input": "50000.50\n",
+      "cobol": "0001875.01\n",
+      "note": "raw 1875.018750 -> TRUNC 1875.01 (round() gives 1875.02 -> RED)"
+    }
+  ]
+}

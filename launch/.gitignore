@@ -1,0 +1,8 @@
+# generated build artifacts — regenerate with:
+#   python3 launch/make_slides.py && bash launch/build_video.sh
+slides/
+build/
+audio/
+*.mp4
+*.aiff
+*.wav

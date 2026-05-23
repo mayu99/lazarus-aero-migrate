@@ -1,0 +1,20 @@
+{
+  "program": "payroll.cob",
+  "captured_with": "GnuCOBOL 3.2.0 (cobc -x) on Linux/macOS, 2026-05-23",
+  "capture_status": "REAL — compiled + run with live cobc, not computed",
+  "role": "PRIMARY ORACLE GROUND TRUTH. The differential oracle proves equivalence against THESE pre-captured real-COBOL bytes; it does NOT require a live compiler in the sandbox (apt/root may be unavailable). When cobc OR a mounted Linux binary IS available, verify_golden_against_binary() re-confirms these bytes are fresh — but the equivalence diff never depends on it. Re-capture morning-of via `python src/differential_oracle.py` (it prints a freshness check) or `src/sample/build_payroll_binary.sh`.",
+  "business_rule": "net = gross - ROUNDED(gross * 0.225). COBOL `COMPUTE ... ROUNDED` is half-up (ROUND_HALF_UP), NOT Python's default banker's rounding. Output is the PIC 9(7)V99 COMP-3 net field rendered by DISPLAY: 7 integer digits + 2 decimals, zero-padded, unsigned, with a trailing newline.",
+  "rounding_note": "Inputs 1.00 and 5.00 are the half-cent tie proof cases: raw tax 0.225 and 1.125. A naive Python translation using round() (banker's rounding) yields net 0.78 / 3.88 and FAILS the diff; the correct ROUND_HALF_UP yields 0.77 / 3.87 matching COBOL. These make the differential oracle's value visible on stage.",
+  "cases": [
+    { "input": "1000.00\n",    "cobol": "0000775.00\n", "note": "tax=225.00, net=775.00 (clean)" },
+    { "input": "0.01\n",       "cobol": "0000000.01\n", "note": "tax rounds to 0.00, net=0.01 (smallest non-zero)" },
+    { "input": "999999.99\n",  "cobol": "0774999.99\n", "note": "tax=224999.99775 -> 225000.00, net=774999.99" },
+    { "input": "0.00\n",       "cobol": "0000000.00\n", "note": "zero edge case" },
+    { "input": "50000.50\n",   "cobol": "0038750.39\n", "note": "tax=11250.1125 -> 11250.11, net=38750.39" },
+    { "input": "1.00\n",       "cobol": "0000000.77\n", "note": "TIE: raw tax 0.225 -> half-up 0.23, net=0.77 (banker's gives 0.78 -> RED)" },
+    { "input": "5.00\n",       "cobol": "0000003.87\n", "note": "TIE: raw tax 1.125 -> half-up 1.13, net=3.87 (banker's gives 3.88 -> RED)" },
+    { "input": "100.00\n",     "cobol": "0000077.50\n", "note": "tax=22.50, net=77.50" },
+    { "input": "123.45\n",     "cobol": "0000095.67\n", "note": "tax=27.77625 -> 27.78, net=95.67" },
+    { "input": "9999999.99\n", "cobol": "7749999.99\n", "note": "max 7-digit gross; tax=2249999.99775 -> 2250000.00, net=7749999.99" }
+  ]
+}

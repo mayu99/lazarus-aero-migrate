@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Secrets — never commit API keys
+.env
+*.key
+
+# OS
+.DS_Store
+
+# Build artifacts / sandbox downloads
+/tmp/
+dist/
+*.log

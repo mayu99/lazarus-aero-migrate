@@ -1,0 +1,32 @@
+# LAZARUS — pinned dependencies.
+# Beta APIs in play (Interactions / Managed Agents are -preview-05-2026), so we
+# pin EXACT versions and re-smoke-test the morning of the demo (see README).
+# Versions below are the ones the test suite + oracle were verified against
+# on 2026-05-23 (Python 3.12+ / 3.14).
+
+# --- Managed Agents driver (src/agent.py) ---
+# Verified floor is google-genai >= 2.4.0 (CHANGELOG, via findings-agents.md): step.* SSE
+# events ship in 2.0.0, interaction.output_text in 2.3.0, and client.agents (create/get/
+# list/delete) + the Environment API in 2.4.0 — below 2.4.0 client.agents does not exist.
+# (The 1.55.0 in the interactions docs is the MODEL path, not managed-agents.) We pin the
+# latest verified-good 2.6.0 as the floor with a <3.0.0 ceiling so a beta breaking change
+# can't silently upgrade us mid-event.
+# Gemini 3.x note: agent.py sends NO temperature/top_p/top_k (rejected on 3.x); the only
+# generation knob is thinking_level (default "medium"), which we leave at default.
+google-genai>=2.6.0,<3.0.0
+
+# --- Orchestrator / live-trace web server (src/agent.py, web/) ---
+fastapi==0.135.3
+uvicorn[standard]==0.41.0
+sse-starlette==3.0.3
+
+# --- Differential oracle test harness (tests/) ---
+# The oracle (src/differential_oracle.py) itself uses only the stdlib; pytest is
+# needed to run tests/ and to run the agent-generated equivalence tests on stage.
+pytest==9.0.2
+
+# System dependency (NOT pip-installable): GnuCOBOL provides `cobc`.
+#   sandbox / Linux:  apt-get install -y gnucobol
+#   local / macOS:    brew install gnucobol   (tested with GnuCOBOL 3.2.0)
+# If cobc is unavailable live, the oracle falls back to src/sample/golden_io.json
+# (real outputs captured from cobc on 2026-05-23) — same byte-for-byte guarantee.

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LAZARUS · Autonomous Legacy Modernization</title>
+  
+  <!-- Premium SEO & Open Graph Metadata -->
+  <meta name="description" content="LAZARUS is an autonomous legacy modernization engine that reads COBOL, recovers undocumented business rules, translates it to Python, and proves correctness using a live GnuCOBOL differential oracle." />
+  <meta name="keywords" content="COBOL, Python, Migration, Software Archaeology, Code Modernization, Gemini, Autonomous AI Agent" />
+  <meta name="theme-color" content="#06090b" />
+  <meta property="og:title" content="LAZARUS · Autonomous Legacy Modernization" />
+  <meta property="og:description" content="Raising dead legacy COBOL code back to life. Translated to clean Python, validated byte-for-byte using a real GnuCOBOL compiler oracle." />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LAZARUS Aero-Migrate" />
+  
+  <!-- Twitter Card Metadata -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LAZARUS · Autonomous Legacy Modernization" />
+  <meta name="twitter:description" content="Autonomous COBOL to Python legacy modernization with differential correctness proof." />
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=Archivo:wght@500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="mode-live">
+  <!-- Interactive CRT overlay effects -->
+  <div class="crt-screen" aria-hidden="true"></div>
+  <div class="crt-scanlines" aria-hidden="true"></div>
+  <div class="bg" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">⚯</span>
+      <span class="brand-name">LAZARUS</span>
+    </div>
+    <div class="topbar-meta">
+      <span class="chip"><i>module</i><b id="meta-module">—</b></span>
+      <span class="chip soft"><i>model</i><b id="meta-agent">antigravity-preview</b></span>
+      <span class="chip soft"><i>iter</i><b><span id="iter-counter">0</span>/<span id="iter-cap">4</span></b></span>
+      <span class="verdict-badge" id="verdict-badge"></span>
+      <button class="crt-toggle-btn" id="crt-toggle" title="Toggle CRT Scanline Style">
+        <span class="indicator-dot"></span><span class="btn-text">CRT Effect</span>
+      </button>
+      <button class="crt-toggle-btn" id="skills-toggle" title="Open Lazarus Skill Library" style="margin-left: 10px; background: rgba(84, 240, 166, 0.1); border-color: rgba(84, 240, 166, 0.4); color: #54f0a6;">
+        <span class="indicator-dot" style="background: #54f0a6; box-shadow: 0 0 8px #54f0a6;"></span><span class="btn-text">📚 Skill Library</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="stage" class="stage" data-phase="">
+    <!-- ── HERO (pre-run) ───────────────────────────────────────── -->
+    <section class="hero">
+      <div class="hero-inner">
+        <h1 class="hero-title">Raising dead code<br/>back to life.</h1>
+        <p class="hero-sub">Migrate legacy <b>COBOL</b> to tested <b>Python</b>, proven
+          <b>byte-for-byte</b> against the real compiler.</p>
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="file-input" accept=".cob,.cbl,.cpy,.txt" hidden />
+          <div class="drop-glyph" aria-hidden="true">↧</div>
+          <div class="drop-head">Drop a COBOL module to migrate</div>
+          <button class="preload-btn" id="preload-btn" type="button">use the sample — payroll.cob</button>
+          <div class="drop-name" id="drop-name"></div>
+        </div>
+        <div class="hero-status"><span class="status-dot"></span><span id="meta-status">booting…</span></div>
+      </div>
+    </section>
+
+    <!-- ── CONSOLE (progressive reveal) ─────────────────────────── -->
+    <section class="console">
+      <nav class="phase-rail" id="phase-rail" aria-label="progress"></nav>
+
+      <!-- WORKING banner: current phase + spinner + latest agent action +
+           an always-advancing heartbeat (elapsed timer + reassurance) so a
+           long live run (8–12 min, silent during tool execution) never reads
+           as frozen. Visible while the run is in flight. -->
+      <div class="working" id="working" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <div class="working-text">
+          <div class="working-phase" id="working-phase">working…</div>
+          <div class="working-action" id="working-action"></div>
+          <div class="working-reassure" id="working-reassure" hidden>Real migrations take a few minutes — the agent is working in a live sandbox.</div>
+        </div>
+        <div class="working-meta">
+          <span class="working-elapsed" id="working-elapsed" hidden><span class="pulse-tick" aria-hidden="true"></span><span id="working-elapsed-time">0:00</span></span>
+          <span class="working-iter" id="working-iter"></span>
+        </div>
+      </div>
+
+      <!-- progressive flow: cards reveal as they receive real data and
+           accumulate top-to-bottom; the active one is emphasized. -->
+      <div class="flow" id="flow">
+        <article class="card" data-when="recover" id="card-recover">
+          <header class="card-head"><span class="card-title">Business rules recovered</span>
+            <span class="card-note"><b id="rules-count">0</b> found</span></header>
+          <div class="card-body"><div class="rules-list" id="rules-list"></div></div>
+        </article>
+
+        <article class="card" data-when="translate" id="card-translate">
+          <header class="card-head"><span class="card-title">COBOL → Python</span></header>
+          <div class="card-body">
+            <div class="diff-grid">
+              <div class="diff-pane"><div class="diff-name" id="diff-left-name">—</div><div class="code-block" id="diff-left"></div></div>
+              <div class="diff-pane"><div class="diff-name" id="diff-right-name">—</div><div class="code-block" id="diff-right"></div></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card panel" data-when="test" id="card-test">
+          <header class="card-head"><span class="card-title">Proof — equivalence vs. real COBOL</span>
+            <span class="term-verdict" id="pytest-verdict"></span></header>
+          <div class="card-body">
+            <div class="oracle-banner" id="oracle-banner"></div>
+            <div class="term-body" id="pytest-body"></div>
+          </div>
+        </article>
+
+        <article class="card panel" data-when="forge" id="card-forge">
+          <header class="card-head"><span class="card-title">Forged a new skill</span>
+            <span class="card-note" id="forge-reason"></span></header>
+          <div class="card-body"><div class="forge-body" id="forge-body"></div></div>
+        </article>
+
+        <!-- shown only before the first card has any data -->
+        <div class="flow-idle" id="flow-idle">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Agent waking up in a live sandbox…</span>
+        </div>
+      </div>
+
+      <!-- compact agent activity: latest line always visible, full log on toggle -->
+      <section class="activity" id="activity">
+        <button class="activity-toggle" id="activity-toggle" type="button">
+          <span class="live-dot"></span><span>Agent activity</span>
+          <span class="activity-hint" id="activity-hint">show full log ›</span>
+        </button>
+        <pre class="src-peek" id="drop-preview" hidden></pre>
+        <div class="trace-stream" id="trace-stream"></div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="transport">
+    <div class="t-left">
+      <button class="t-btn" id="play-btn" data-playing="false" title="run (space)"><span class="ic-play">▶</span><span class="ic-pause">❚❚</span><span class="t-label">run</span></button>
+      <button class="t-btn ghost" id="restart-btn" title="re-run (r)">↺<span class="t-label">re-run</span></button>
+      <button class="t-btn ghost" id="back-btn" title="upload new file (b)">← <span class="t-label">upload new</span></button>
+      <span class="t-status"><span class="status-dot"></span><span id="clock">live</span></span>
+    </div>
+    
+    <!-- Timeline Scrubber for presenting in Mock Fallback mode -->
+    <div class="t-mid" id="timeline-container" hidden>
+      <span class="scrub-time" id="scrub-current">00:00</span>
+      <input type="range" id="timeline-scrubber" min="0" max="100" value="0" class="timeline-slider" title="Drag to seek steps" />
+      <span class="scrub-time" id="scrub-total">00:00</span>
+    </div>
+
+    <button class="download-btn" id="download-btn" disabled><span class="dl-ic">⤓</span> Download migrated Python</button>
+  </footer>
+
+  <!-- Lazarus Skill Library Drawer -->
+  <aside id="skills-drawer" class="skills-drawer">
+    <div class="drawer-header">
+      <h2>📚 Lazarus Skill Library</h2>
+      <button class="drawer-close" id="drawer-close" title="Close Drawer">&times;</button>
+    </div>
+    <div class="drawer-body">
+      <div class="skills-sidebar" id="skills-sidebar">
+        <!-- List of skills will be populated here -->
+      </div>
+      <div class="skills-content">
+        <div class="skills-content-placeholder" id="skills-content-placeholder">
+          <p>Select a skill from the sidebar to inspect the agent's knowledge library.</p>
+        </div>
+        <pre class="skills-content-view" id="skills-content-view" hidden></pre>
+      </div>
+    </div>
+  </aside>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
