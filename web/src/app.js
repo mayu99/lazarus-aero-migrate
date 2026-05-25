@@ -20,7 +20,7 @@ const state = {
   cobol: null,       // loaded source
   filename: 'payroll.cob',
   loaded: false,
-  mock: new URLSearchParams(window.location.search).get('mock') === '1',
+  mock: new URLSearchParams(window.location.search).get('mock') === '1' || window.location.hostname.includes('vercel.app') || window.location.hostname.includes('github.io'),
   mockTimers: [],    // scheduled setTimeout ids for the break-glass replay
   mockEvents: [],    // raw event cache for seeking
   isScrubbing: false
